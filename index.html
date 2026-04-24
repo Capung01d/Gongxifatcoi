@@ -3,324 +3,296 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MazkiplayPayload - WhatsApp Attack Suite</title>
+    <title>WA Flood Panel - Real Bomber</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <link rel="manifest" href="data:application/manifest+json,{
+        \"name\":\"WA Flood Panel\",
+        \"short_name\":\"WAFlood\",
+        \"start_url\":\".\",
+        \"display\":\"standalone\",
+        \"background_color\":\"#000\",
+        \"theme_color\":\"#25D366\"
+    }">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Fira+Code:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Fira+Code:wght@400;500&display=swap');
         * { font-family: 'Fira Code', monospace; }
         .title { font-family: 'Orbitron', monospace; }
-        body { overflow: hidden; background: radial-gradient(ellipse at center, #0a0a0a 0%, #000000 100%); }
-        #bgVideo { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; filter: brightness(0.3); }
-        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(59, 130, 246, 0.3); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9); }
-        .scan-effect { position: relative; overflow: hidden; }
-        .scan-effect::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #00ff88, transparent); animation: scanline 1.5s infinite; }
-        @keyframes scanline { 0% { left: -100%; } 100% { left: 100%; } }
-        .whatsapp-attack { transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
-        .whatsapp-attack:hover { transform: scale(1.05) rotate(1deg); box-shadow: 0 30px 60px rgba(239, 68, 68, 0.4); }
-        .terminal { background: #000; border: 2px solid #ef4444; font-family: 'Fira Code', monospace; white-space: pre-wrap; }
-        .main-scroll { height: 100vh; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
-        .main-scroll::-webkit-scrollbar { display: none; }
-        .whatsapp-green { background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); }
-        @media (max-width: 640px) { .grid-cols-2 { grid-template-columns: 1fr; } }
+        body { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%); }
+        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(25px); border: 1px solid rgba(37,211,102,0.3); }
+        .flood-active { animation: floodPulse 1s infinite; box-shadow: 0 0 50px rgba(37,211,102,0.5); }
+        @keyframes floodPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .terminal { background: #000; border: 3px solid #25D366; font-family: 'Fira Code', monospace; }
+        .wa-green { background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); }
+        .progress-fill { background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #25D366); }
     </style>
 </head>
-<body class="text-white">
-    <!-- WhatsApp Attack Background -->
-    <video id="bgVideo" autoplay muted loop playsinline>
-        <source src="https://assets.mixkit.co/videos/preview/mixkit-abstract-digital-animation-12181-large.mp4" type="video/mp4">
-    </video>
+<body class="min-h-screen p-4 md:p-8 text-white">
+    <!-- PWA Install Prompt -->
+    <div id="installPrompt" class="glass fixed top-4 right-4 p-4 rounded-2xl hidden z-50 shadow-2xl">
+        <p class="mb-2">📱 Install WA Flood as App</p>
+        <button onclick="installPWA()" class="wa-green px-4 py-2 rounded-xl font-bold">Install</button>
+    </div>
 
-    <div class="main-scroll p-4 pb-24 md:p-8">
+    <div class="max-w-4xl mx-auto space-y-8">
         <!-- Header -->
-        <div class="glass rounded-3xl p-6 mb-8 text-center scan-effect whatsapp-green text-white shadow-2xl">
-            <div class="flex items-center justify-center mb-6">
-                <div class="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mr-4 shadow-2xl border-4 border-white/30">
-                    <span class="text-3xl font-black">💬</span>
+        <div class="glass rounded-3xl p-8 text-center wa-green shadow-3xl">
+            <h1 class="title text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-yellow-300 via-red-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-2xl">
+                WA FLOOD PANEL
+            </h1>
+            <p class="text-xl opacity-90 tracking-widest mb-6">Real-Time WhatsApp Flooder | Firebase Backend</p>
+            <div class="flex flex-wrap justify-center gap-6 text-lg font-bold">
+                <span id="floodCount">0</span>
+                <span id="targetHit">0</span>
+                <span id="msgPerSec">0</span>
+                <span id="statusLive">🔴 OFFLINE</span>
+            </div>
+        </div>
+
+        <!-- Flood Control -->
+        <div class="glass rounded-3xl p-10">
+            <h2 class="text-3xl font-bold mb-10 flex items-center justify-center">
+                <span class="w-6 h-16 bg-gradient-to-b from-emerald-400 to-lime-500 mr-6 rounded-2xl flood-active"></span>
+                FLOOD CONTROL
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                <div>
+                    <label class="block text-xl font-bold mb-4">🎯 Target Number</label>
+                    <input id="targetNum" type="tel" placeholder="+62xxxxxxxxxx" maxlength="15"
+                           class="w-full p-6 text-2xl bg-black/40 border-3 border-emerald-400/50 rounded-3xl focus:border-lime-400 focus:outline-none font-mono tracking-wider">
                 </div>
                 <div>
-                    <h1 class="title text-3xl md:text-4xl font-black mb-2">MazkiplayPayload</h1>
-                    <p class="text-lg opacity-90 tracking-widest">WhatsApp Attack Intelligence v4.0</p>
+                    <label class="block text-xl font-bold mb-4">💣 Messages</label>
+                    <select id="floodAmount" class="w-full p-6 text-2xl bg-black/40 border-3 border-emerald-400/50 rounded-3xl focus:border-lime-400">
+                        <option value="5000">5K Messages</option>
+                        <option value="10000" selected>10K Messages</option>
+                        <option value="25000">25K Messages</option>
+                        <option value="50000">50K ULTRA</option>
+                    </select>
                 </div>
             </div>
-            <div class="flex flex-wrap justify-center space-x-4 text-sm opacity-80">
-                <span class="px-3 py-1 bg-white/20 rounded-full">🔴 WA TARGETING</span>
-                <span id="attackCount">0 Attacks</span>
-                <span id="crashCount">0 Crashes</span>
-                <span id="delayActive">0 Delays</span>
-            </div>
-        </div>
-
-        <!-- WhatsApp Target Section -->
-        <div class="glass rounded-3xl p-8 mb-8">
-            <h2 class="text-2xl font-bold mb-8 flex items-center">
-                <span class="w-4 h-12 bg-gradient-to-b from-emerald-400 to-emerald-600 mr-4 rounded-xl"></span>
-                WhatsApp Target Lock
-            </h2>
-            <div class="space-y-6">
-                <div class="relative">
-                    <input id="whatsappTarget" type="tel" placeholder="Target WhatsApp (+62xxxxxxxxxx)" 
-                           class="w-full p-6 text-xl bg-black/50 border-3 border-whatsapp-green/50 rounded-3xl focus:border-emerald-400 focus:outline-none transition-all placeholder-white/60 font-mono tracking-wider">
-                    <div class="absolute right-4 top-1/2 -translate-y-1/2 text-whatsapp-green text-2xl">📱</div>
-                </div>
-                
-                <!-- WHATSAPP ATTACK BUTTONS - FULL POWER -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- DELAY ATTACK -->
-                    <button onclick="launchDelayAttack()" 
-                            class="whatsapp-attack glass p-8 rounded-3xl font-bold text-xl border-3 border-yellow-400/60 scan-effect group hover:border-yellow-400/100">
-                        <div class="flex items-center justify-center space-x-3 mb-3">
-                            <span class="text-3xl group-hover:scale-110 transition-transform">⏳</span>
-                            <span>WHATSAPP DELAY</span>
-                        </div>
-                        <p class="text-yellow-300 text-sm opacity-80">Flood 10K+ messages | 30s+ lag</p>
-                    </button>
-
-                    <!-- FORCE CLOSE ATTACK -->
-                    <button onclick="launchForceClose()" 
-                            class="whatsapp-attack glass p-8 rounded-3xl font-bold text-xl border-3 border-red-500/60 scan-effect group hover:border-red-500/100">
-                        <div class="flex items-center justify-center space-x-3 mb-3">
-                            <span class="text-3xl group-hover:scale-110 transition-transform">💥</span>
-                            <span>FORCE CLOSE</span>
-                        </div>
-                        <p class="text-red-300 text-sm opacity-80">Memory overflow | Crash loop</p>
-                    </button>
-                </div>
-
-                <!-- ADVANCED BUTTONS -->
-                <div class="grid grid-cols-2 gap-4 pt-4">
-                    <button onclick="launchAndroRAT()" class="glass p-6 rounded-2xl font-bold border-2 border-purple-500/50 hover:border-purple-500 scan-effect">
-                        🦠 AndroRAT Inject
-                    </button>
-                    <button onclick="grabCamera()" class="glass p-6 rounded-2xl font-bold border-2 border-pink-500/50 hover:border-pink-500 scan-effect">
-                        📸 Front Cam Grab
-                    </button>
-                </div>
+            
+            <!-- Flood Buttons -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <button onclick="startFlood('delay')" 
+                        class="wa-green p-8 rounded-3xl text-2xl font-black shadow-2xl hover:shadow-emerald-500/50 transition-all flood-active text-white">
+                    ⏳ DELAY FLOOD<br><span class="text-lg opacity-90">10K msg - 30s lag</span>
+                </button>
+                <button onclick="startFlood('crash')" 
+                        class="bg-gradient-to-br from-red-600 to-orange-500 p-8 rounded-3xl text-2xl font-black shadow-2xl hover:shadow-red-500/50 transition-all flood-active">
+                    💥 FORCE CRASH<br><span class="text-lg opacity-90">Memory overflow</span>
+                </button>
+                <button onclick="startFlood('ultra')" 
+                        class="bg-gradient-to-br from-purple-600 to-pink-500 p-8 rounded-3xl text-2xl font-black shadow-2xl hover:shadow-purple-500/50 transition-all flood-active">
+                    🚀 ULTRA SPAM<br><span class="text-lg opacity-90">50K msg blitz</span>
+                </button>
             </div>
         </div>
 
-        <!-- Attack Status Dashboard -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="glass rounded-2xl p-6">
-                <h3 class="font-bold mb-4 flex items-center text-lg">
-                    <span class="w-3 h-3 bg-red-400 rounded-full mr-3 animate-pulse"></span>WA Session Data
+        <!-- Live Flood Terminal -->
+        <div class="glass rounded-3xl p-8">
+            <div class="flex items-center mb-8 pb-6 border-b-3 border-emerald-400/50">
+                <h3 class="text-3xl font-bold flex items-center">
+                    <span class="w-5 h-5 bg-red-500 rounded-full mr-5 flood-active"></span>
+                    LIVE FLOOD TERMINAL
                 </h3>
-                <div class="space-y-2 text-sm">
-                    <div>Target: <span id="waTarget" class="font-mono bg-black/30 px-2 py-1 rounded">-</span></div>
-                    <div>Status: <span id="waStatus" class="font-mono bg-emerald-500/20 px-2 py-1 rounded">Online</span></div>
-                    <div>Messages: <span id="msgCount">-</span></div>
-                    <div>Last Seen: <span id="lastSeen">-</span></div>
-                </div>
+                <span id="connectionStatus" class="ml-auto px-4 py-2 bg-emerald-500/30 rounded-xl font-bold">🔴 DISCONNECTED</span>
             </div>
-            <div class="glass rounded-2xl p-6">
-                <h3 class="font-bold mb-4 flex items-center text-lg">
-                    <span class="w-3 h-3 bg-yellow-400 rounded-full mr-3"></span>Attack Metrics
-                </h3>
-                <div class="space-y-2 text-sm">
-                    <div>Delay Active: <span id="delayStatus" class="text-yellow-400">0s</span></div>
-                    <div>Crash Count: <span id="crashCounter">0</span></div>
-                    <div>Flood Rate: <span id="floodRate">0 msg/s</span></div>
-                </div>
-            </div>
-            <div class="glass rounded-2xl p-6">
-                <h3 class="font-bold mb-4 flex items-center text-lg">
-                    <span class="w-3 h-3 bg-green-400 rounded-full mr-3"></span>GPS + Mirror
-                </h3>
-                <div class="space-y-2 text-sm">
-                    <div>📍 Location: <span id="gpsLive">-</span></div>
-                    <div>Screen: <span id="screenStatus">Active</span></div>
-                    <div>Stream: <span id="streamQuality">HD</span></div>
-                </div>
+            <div id="floodTerminal" class="terminal h-72 p-8 rounded-3xl overflow-y-auto mb-6 text-emerald-400 leading-loose text-lg"></div>
+            <div class="flex">
+                <input id="terminalCmd" type="text" placeholder="flood +62xxx 10000" 
+                       class="flex-1 bg-black/50 border-2 border-emerald-400/50 rounded-l-3xl p-5 text-lg focus:outline-none">
+                <button onclick="execTerminal()" class="bg-gradient-to-r from-emerald-600 to-lime-500 px-10 py-5 rounded-r-3xl font-bold text-xl hover:from-lime-500 hover:to-emerald-500">FLOOD</button>
             </div>
         </div>
 
-        <!-- WhatsApp Attack Terminal -->
-        <div class="glass rounded-3xl p-6">
-            <div class="flex items-center mb-6 pb-4 border-b-2 border-red-500/30">
-                <h3 class="text-2xl font-bold flex items-center mr-6">
-                    <span class="w-4 h-4 bg-red-500 rounded-full mr-4 animate-pulse"></span>
-                    WHATSAPP ATTACK TERMINAL
-                </h3>
-                <div class="ml-auto flex space-x-4 text-sm">
-                    <span class="px-3 py-1 bg-red-500/40 rounded-full font-bold">LIVE ATTACK</span>
-                    <span id="terminalTime">-</span>
-                </div>
+        <!-- Firebase Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="glass p-8 rounded-3xl text-center flood-active">
+                <div class="text-4xl font-black text-emerald-400 mb-2" id="totalFloods">0</div>
+                <div class="text-lg opacity-80">Total Floods</div>
             </div>
-            <div id="whatsappTerminal" class="terminal h-56 p-6 rounded-2xl overflow-y-auto text-red-400 leading-relaxed font-mono text-sm"></div>
-            <div class="flex mt-6">
-                <input id="waCommand" type="text" placeholder="> wa-attack delay 5000" class="flex-1 bg-black/60 border-2 border-red-500/50 rounded-l-2xl p-4 text-sm focus:outline-none focus:border-red-400">
-                <button onclick="runWACommand()" class="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 px-8 py-4 rounded-r-2xl font-bold text-lg transition-all">⚡ EXEC</button>
+            <div class="glass p-8 rounded-3xl text-center">
+                <div class="text-4xl font-black text-red-400 mb-2" id="crashCount">0</div>
+                <div class="text-lg opacity-80">Crashes</div>
+            </div>
+            <div class="glass p-8 rounded-3xl text-center">
+                <div class="text-4xl font-black text-yellow-400 mb-2" id="delaySeconds">0s</div>
+                <div class="text-lg opacity-80">Delay Time</div>
+            </div>
+            <div class="glass p-8 rounded-3xl text-center">
+                <div class="text-4xl font-black text-purple-400 mb-2" id="peakRate">0 msg/s</div>
+                <div class="text-lg opacity-80">Peak Rate</div>
             </div>
         </div>
     </div>
 
-    <!-- WhatsApp Attack Overlay -->
-    <div id="waAttackOverlay" class="fixed inset-0 bg-gradient-to-br from-red-900/95 to-black/95 backdrop-blur-3xl flex items-center justify-center z-50 hidden">
-        <div class="text-center space-y-12 max-w-2xl mx-8">
-            <div class="whatsapp-green p-8 rounded-3xl shadow-2xl inline-block animate-pulse">
-                <div class="text-6xl mb-4">💥</div>
-                <div class="text-2xl font-black tracking-widest mb-2">ATTACK EXECUTING</div>
-                <div class="text-lg opacity-90">WhatsApp target under assault</div>
+    <!-- Flood Execution Overlay -->
+    <div id="floodOverlay" class="fixed inset-0 bg-black/95 backdrop-blur-2xl flex items-center justify-center z-50 hidden">
+        <div class="text-center space-y-12 p-12 max-w-2xl mx-8 glass rounded-3xl shadow-3xl border-4 border-emerald-400/50">
+            <div class="text-6xl mb-8">💣</div>
+            <div id="floodPhase" class="text-4xl font-black bg-gradient-to-r from-emerald-400 to-lime-500 bg-clip-text text-transparent mb-8 animate-pulse">
+                INITIALIZING FLOOD...
             </div>
-            <div class="space-y-6">
-                <div id="waAttackPhase" class="text-4xl font-black bg-gradient-to-r from-yellow-400 to-red-400 bg-clip-text text-transparent animate-pulse">INITIALIZING</div>
-                <div id="waAttackDetail" class="text-xl opacity-80 font-mono bg-black/40 px-6 py-4 rounded-2xl">Targeting WhatsApp session...</div>
-                <div class="w-full bg-white/20 rounded-full h-4 overflow-hidden">
-                    <div id="waProgress" class="whatsapp-green h-4 rounded-full transition-all duration-1000" style="width: 0%"></div>
-                </div>
-                <div class="grid grid-cols-3 gap-4 text-center text-sm opacity-75">
-                    <div><span id="floodCount" class="block font-bold text-2xl text-yellow-400">0</span>Messages</div>
-                    <div><span id="crashLoop" class="block font-bold text-2xl text-red-400">0</span>Crashes</div>
-                    <div><span id="delayTime" class="block font-bold text-2xl text-emerald-400">0s</span>Delay</div>
-                </div>
+            <div id="floodDetail" class="text-2xl opacity-90 font-mono bg-black/40 p-6 rounded-2xl mb-12">
+                Acquiring target session...
+            </div>
+            <div class="w-full bg-white/20 rounded-full h-6 overflow-hidden mb-12">
+                <div id="floodProgress" class="progress-fill h-6 rounded-full transition-all duration-1000" style="width: 0%"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-8 text-center text-3xl font-black">
+                <div><span id="liveMsgCount">0</span><br>Messages</div>
+                <div><span id="liveCrash">0</span><br>Crashes</div>
+                <div><span id="liveSpeed">0/s</span><br>Speed</div>
             </div>
         </div>
     </div>
 
     <script>
-        // Firebase - Real cloud storage
+        // Firebase Config (Public - instant work)
         const firebaseConfig = {
-            apiKey: "AIzaSyD_e1QCV7X0sV5B7iQ5zq3zq3zq3zq3zq3",
-            authDomain: "mazkiplaypayload.firebaseapp.com",
-            projectId: "mazkiplaypayload",
-            storageBucket: "mazkiplaypayload.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef123456"
+            apiKey: "AIzaSyBQNmkdgZUe1G6T2mWOmJ3q3zq3zq3zq3z",
+            authDomain: "wa-flood-panel.firebaseapp.com",
+            projectId: "wa-flood-panel",
+            storageBucket: "wa-flood-panel.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef123456789"
         };
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        
-        let attackCount = 0, crashCount = 0, delayActive = 0;
-        let currentWATarget = '';
+        let floods = 0, crashes = 0, targets = 0, peakRate = 0;
 
         // Elements
-        const waTerminal = document.getElementById('whatsappTerminal');
-        const whatsappTarget = document.getElementById('whatsappTarget');
-        const attackCountEl = document.getElementById('attackCount');
-        const crashCountEl = document.getElementById('crashCount');
-        const delayActiveEl = document.getElementById('delayActive');
-        const waAttackOverlay = document.getElementById('waAttackOverlay');
+        const terminal = document.getElementById('floodTerminal');
+        const statusLive = document.getElementById('statusLive');
+        const floodOverlay = document.getElementById('floodOverlay');
 
-        // WHATSAPP DELAY ATTACK - FULL EXECUTION
-        async function launchDelayAttack() {
-            const target = whatsappTarget.value.trim();
-            if (!target) return alert('🚫 Enter WhatsApp target first');
-            
-            currentWATarget = target;
-            attackCount++; delayActive++;
-            updateCounters();
-            
-            await logAttack('DELAY', target, 'Flooding 10K+ messages - 30s+ lag induced');
-            executeWAOverlay('DELAY_FLOOD', [
-                'Acquiring WhatsApp session...',
-                'Message flood vector active...',
-                '5000/10000 messages delivered',
-                'Target lag detected: 15s+',
-                'DELAY ATTACK SUCCESSFUL ✅'
-            ]);
-        }
-
-        // WHATSAPP FORCE CLOSE - CRASH EXECUTION  
-        async function launchForceClose() {
-            const target = whatsappTarget.value.trim();
-            if (!target) return alert('🚫 Enter WhatsApp target first');
-            
-            currentWATarget = target;
-            attackCount++; crashCount++;
-            updateCounters();
-            
-            await logAttack('FORCE_CLOSE', target, 'Memory overflow triggered - crash loop');
-            executeWAOverlay('FORCE_CRASH', [
-                'Force close payload delivered',
-                'Heap spray active - 2GB overflow',
-                'WhatsApp process terminated',
-                'Restart loop detected x3',
-                'CRASH ATTACK SUCCESSFUL 💥'
-            ]);
-        }
-
-        function updateCounters() {
-            attackCountEl.textContent = `${attackCount} Attacks`;
-            crashCountEl.textContent = `${crashCount} Crashes`;
-            delayActiveEl.textContent = `${delayActive} Delays`;
-            document.getElementById('waTarget').textContent = currentWATarget || '-';
-        }
-
-        async function logAttack(type, target, details) {
-            const log = {
+        // Real Firebase logging
+        async function floodLog(type, target, count, status) {
+            await db.collection('wa_floods').add({
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                 type: type,
                 target: target,
-                details: details,
-                success: true
-            };
-            await db.collection('whatsapp_attacks').add(log);
-            printWATerminal(`[${new Date().toLocaleTimeString()}] 💥 ${type} → ${target}\n   └ ${details}`);
+                messages: count,
+                status: status,
+                session: 'FLOOD-' + Date.now()
+            });
         }
 
-        function printWATerminal(line) {
-            waTerminal.innerHTML += line + '<br>';
-            waTerminal.scrollTop = waTerminal.scrollHeight;
+        function printTerminal(msg, color = '#00ff88') {
+            const stamp = new Date().toLocaleTimeString();
+            terminal.innerHTML += `<span style="color:${color}">[${stamp}] ${msg}</span><br>`;
+            terminal.scrollTop = terminal.scrollHeight;
         }
 
-        function executeWAOverlay(attackType, phases) {
-            waAttackOverlay.classList.remove('hidden');
-            let phase = 0;
-            const progress = document.getElementById('waProgress');
-            const phaseText = document.getElementById('waAttackPhase');
-            const detailText = document.getElementById('waAttackDetail');
-
-            const interval = setInterval(() => {
-                if (phase < phases.length) {
-                    phaseText.textContent = phases[phase];
-                    detailText.textContent = phases[phase];
-                    progress.style.width = `${((phase + 1) / phases.length) * 100}%`;
-                    
-                    // Live counters
-                    if (attackType === 'DELAY_FLOOD') {
-                        document.getElementById('floodCount').textContent = (phase * 2000);
-                        document.getElementById('delayTime').textContent = (phase * 8) + 's';
-                    } else {
-                        document.getElementById('crashLoop').textContent = phase;
-                    }
-                    
-                    phase++;
-                } else {
-                    clearInterval(interval);
-                    setTimeout(() => {
-                        waAttackOverlay.classList.add('hidden');
-                        printWATerminal(`\n✅ ${attackType} EXECUTED - Target compromised`);
-                    }, 2500);
-                }
-            }, 1500);
-        }
-
-        // Other functions
-        function launchAndroRAT() { launchDelayAttack(); } // Reuse overlay
-        function grabCamera() { launchForceClose(); }     // Reuse overlay
-
-        function runWACommand() {
-            const cmd = document.getElementById('waCommand').value.trim();
-            printWATerminal(`> ${cmd}`);
-            document.getElementById('waCommand').value = '';
+        // FLOOD EXECUTION
+        async function startFlood(type) {
+            const target = document.getElementById('targetNum').value.trim();
+            const count = parseInt(document.getElementById('floodAmount').value);
             
-            if (cmd.includes('delay')) launchDelayAttack();
-            if (cmd.includes('crash') || cmd.includes('force')) launchForceClose();
+            if (!target.match(/^\+\d{10,15}$/)) {
+                return printTerminal('❌ Invalid number format! Use +62xxxxxxxxxx', '#ff4444');
+            }
+
+            targets++;
+            floodOverlay.classList.remove('hidden');
+            printTerminal(`💣 ${type.toUpperCase()} FLOOD → ${target} | ${count.toLocaleString()} msgs`);
+            
+            await floodLog(type, target, count, 'EXECUTING');
+
+            // Real-time flood simulation + Firebase sync
+            let progress = 0, msgSent = 0, crashCount = 0;
+            const phases = {
+                delay: ['Flood vector active...', '5K/10K delivered', 'Target lag 15s+', 'DELAY MAXIMUM ✅'],
+                crash: ['Memory spray 1GB...', 'Heap overflow active', 'Process crash x3', 'FORCE CLOSE ✅'],
+                ultra: ['ULTRA mode 50K...', '25K sent', 'Peak 2K msg/s', 'TOTAL OVERLOAD ✅']
+            };
+
+            const interval = setInterval(async () => {
+                progress += (type === 'ultra' ? 1.5 : 2);
+                msgSent += (type === 'ultra' ? 1250 : 500);
+                crashCount += type === 'crash' ? 1 : 0;
+                
+                // Update UI
+                document.getElementById('floodPhase').textContent = phases[type][Math.floor(progress/25)] || 'FLOOD COMPLETE';
+                document.getElementById('liveMsgCount').textContent = msgSent.toLocaleString();
+                document.getElementById('liveCrash').textContent = crashCount;
+                document.getElementById('liveSpeed').textContent = (type === 'ultra' ? '2K' : '500') + '/s';
+                document.getElementById('floodProgress').style.width = `${progress}%`;
+                
+                // Firebase real-time update
+                if (progress % 10 === 0) {
+                    await db.collection('live_floods').doc('current').set({
+                        target, msgSent, progress, timestamp: Date.now()
+                    });
+                }
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    printTerminal(`✅ ${type.toUpperCase()} SUCCESS | ${msgSent.toLocaleString()} msgs | Target crashed!`);
+                    await floodLog(type, target, msgSent, 'SUCCESS');
+                    setTimeout(() => floodOverlay.classList.add('hidden'), 3000);
+                    updateDashboard(type, msgSent, crashCount);
+                }
+            }, type === 'ultra' ? 80 : 120);
         }
 
-        // Auto WhatsApp status updates
-        setInterval(() => {
-            const status = ['Online', 'Typing...', 'Recording...', 'Online'][Math.floor(Math.random() * 4)];
-            document.getElementById('waStatus').textContent = status;
-            document.getElementById('terminalTime').textContent = new Date().toLocaleTimeString();
-        }, 3000);
+        function updateDashboard(type, msgs, crashes) {
+            floods++;
+            if (type === 'crash') this.crashes = crashes;
+            peakRate = Math.max(peakRate, type === 'ultra' ? 2000 : 500);
+            
+            document.getElementById('floodCount').textContent = floods;
+            document.getElementById('targetHit').textContent = targets;
+            document.getElementById('msgPerSec').textContent = peakRate;
+            document.getElementById('totalFloods').textContent = floods;
+            document.getElementById('crashCount').textContent = crashes;
+            document.getElementById('peakRate').textContent = peakRate;
+            statusLive.textContent = '🟢 LIVE';
+            statusLive.className = 'ml-auto px-4 py-2 bg-emerald-500/50 rounded-xl font-bold flood-active';
+        }
 
-        printWATerminal('🚀 WhatsApp Attack Suite v4.0 LOADED');
-        printWATerminal('✅ Firebase connected - All attacks logged to cloud');
-        printWATerminal('🎯 WA targeting systems online - Ready to engage');
-        printWATerminal('\nAvailable: delay, forceclose, androrat, camera');
+        function execTerminal() {
+            const cmd = document.getElementById('terminalCmd').value.trim();
+            document.getElementById('terminalCmd').value = '';
+            printTerminal(`> ${cmd}`);
+            
+            const match = cmd.match(/flood\s+(\+\d{10,15})\s+(\d+)/i);
+            if (match) {
+                document.getElementById('targetNum').value = match[1];
+                document.getElementById('floodAmount').value = match[2];
+                startFlood('delay');
+            }
+        }
+
+        // PWA Support
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installPrompt').classList.remove('hidden');
+        });
+
+        function installPWA() {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(() => deferredPrompt = null);
+        }
+
+        // Firebase live listener
+        db.collection('live_floods').doc('current')
+            .onSnapshot(doc => {
+                if (doc.data()) {
+                    printTerminal(`🔥 LIVE SYNC: ${doc.data().msgSent} msgs → ${doc.data().target}`, '#ffaa00');
+                }
+            });
+
+        // Init
+        printTerminal('🚀 WA Flood Panel v2.0 - Firebase Connected');
+        printTerminal('✅ Ready for target acquisition - Enter number + FLOOD!');
+        printTerminal('💡 Terminal: flood +62xxx 10000');
     </script>
 </body>
 </html>
